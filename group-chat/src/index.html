@@ -6,65 +6,34 @@
     <title>Group Chat</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-        import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
             authDomain: "apk-center.firebaseapp.com",
             databaseURL: "https://apk-center-default-rtdb.firebaseio.com",
             projectId: "apk-center",
-            storageBucket: "apk-center.firebasestorage.app",
+            storageBucket: "apk-center.appspot.com",
             messagingSenderId: "432966065101",
             appId: "1:432966065101:web:cb757bae82ece9747c4284",
             measurementId: "G-VEK05C59R7"
         };
 
-        // Initialize Firebase and Firestore
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const rdb = getDatabase(app); // For real-time database
-        const storage = getStorage(app); // For Firebase Storage
+        const storage = getStorage(app);
 
-        let userName = '';
-        let userDocRef = null;
+        let userName = prompt("Enter your name:") || "Anonymous";
 
-        // Ask for the user's name when the page loads
-        window.onload = function() {
-            userName = prompt("Enter your name:") || "Anonymous"; // If user cancels, set to "Anonymous"
-            updateOnlineStatus(true); // Mark user as online
-            loadMessages();
-        };
-
-        // Update user status to 'online' in Firestore and Realtime Database
-        function updateOnlineStatus(isOnline) {
-            const usersRef = collection(db, "users");
-
-            // Create or update the user document with online status
-            userDocRef = doc(usersRef, userName);
-            setDoc(userDocRef, {
-                name: userName,
-                online: isOnline,
-                last_seen: serverTimestamp(),
-            }, { merge: true });
-
-            // Also update Realtime Database for online presence
-            const userStatusRef = ref(rdb, 'status/' + userName);
-            set(userStatusRef, { online: isOnline });
-
-            // Automatically mark the user as offline when they disconnect
-            if (isOnline) {
-                onDisconnect(userStatusRef).set({ online: false });
-            }
-        }
-
-        // Send a new message to Firestore (handles both text and file messages)
+        // Send message to Firestore
         async function sendMessage(fileUrl = null) {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
-            if (text.length === 0 && !fileUrl) return; // Avoid sending empty or just spaces messages
+            if (text.length === 0 && !fileUrl) {
+                return; // Avoid sending empty or just spaces messages
+            }
 
             try {
                 await addDoc(collection(db, "messages"), {
@@ -76,58 +45,66 @@
                 input.value = ''; // Clear input field after sending
                 input.focus(); // Refocus the input field
             } catch (error) {
-                console.error("Error sending message:", error);
+                console.error("Error sending message:", error); // Log the error to the console
                 alert("There was an error sending your message. Please try again.");
             }
         }
 
-        // Load messages and listen for real-time updates
+        // Handle file selection (upload to Firebase Storage)
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileName = Date.now() + "_" + file.name; // Unique file name to avoid collisions
+            const storageRef = ref(storage, 'uploads/' + fileName);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            // Monitor the upload process
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    // Optionally log progress
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    console.log(`Upload Progress: ${progress}%`);
+                },
+                (error) => {
+                    console.error("Error uploading file:", error); // Log upload error
+                    alert("There was an error uploading the file.");
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        console.log("File uploaded successfully, URL:", downloadURL);
+                        sendMessage(downloadURL); // Send message with the file URL
+                    });
+                }
+            );
+        }
+
+        // Listen for new messages
         function loadMessages() {
             const messages = document.getElementById('messages');
-            const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
-
-            onSnapshot(messagesQuery, (snapshot) => {
+            const query = collection(db, "messages");
+            onSnapshot(query, (snapshot) => {
                 messages.innerHTML = ''; // Clear messages area
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     const messageDiv = document.createElement('div');
                     messageDiv.className = 'message ' + (data.name === userName ? 'sender' : 'receiver');
+                    messageDiv.textContent = `${data.name}: ${data.text}`;
                     
-                    // Display text message
-                    if (data.text) {
-                        messageDiv.textContent = `${data.name}: ${data.text}`;
-                    }
-
-                    // Display file link or image/video
+                    // If there's a file URL, display the file accordingly
                     if (data.fileUrl) {
                         const fileLink = document.createElement('a');
                         fileLink.href = data.fileUrl;
                         fileLink.target = "_blank";
                         fileLink.textContent = "View File";
-
-                        if (data.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
-                            const img = document.createElement('img');
-                            img.src = data.fileUrl;
-                            img.alt = "Image preview";
-                            img.style.maxWidth = "200px";
-                            img.style.marginTop = "5px";
-                            messageDiv.appendChild(img);
-                        } else if (data.fileUrl.match(/\.(mp4|webm)$/i)) {
-                            const video = document.createElement('video');
-                            video.src = data.fileUrl;
-                            video.controls = true;
-                            video.style.maxWidth = "300px";
-                            messageDiv.appendChild(video);
-                        } else {
-                            messageDiv.appendChild(fileLink);
-                        }
+                        messageDiv.appendChild(fileLink);
                     }
 
                     messages.appendChild(messageDiv);
                 });
 
-                // Auto-scroll to latest message only if user is at the bottom
+                // Auto-scroll to the latest message
                 const isAtBottom = messages.scrollHeight - messages.scrollTop === messages.clientHeight;
                 if (isAtBottom) {
                     messages.scrollTop = messages.scrollHeight;
@@ -135,68 +112,19 @@
             });
         }
 
-        // Function to check if "Enter" is pressed
+        // Handle Enter key press in the message input
         function checkEnter(event) {
             if (event.key === 'Enter') {
-                event.preventDefault(); // Prevents the default form submission
+                event.preventDefault();
                 sendMessage();
             }
         }
 
-        // Attach event listener to the "Send" button
-        document.addEventListener("DOMContentLoaded", function() {
-            const sendButton = document.getElementById("sendButton");
-            sendButton.addEventListener("click", sendMessage);
-        });
-
-        // Handle file selection and upload
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-
-            if (!file) return;
-
-            const storageReference = storageRef(storage, 'uploads/' + file.name);
-            const uploadTask = uploadBytesResumable(storageReference, file);
-
-            uploadTask.on('state_changed', 
-                (snapshot) => {
-                    // Handle progress or status here (optional)
-                },
-                (error) => {
-                    console.error("Error uploading file:", error);
-                    alert("There was an error uploading the file.");
-                },
-                () => {
-                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                        sendMessage(downloadURL); // Send message with the file URL
-                    });
-                }
-            );
-        }
-
-        // Listen for online users and update the user list
-        function listenForOnlineUsers() {
-            const usersRef = ref(rdb, 'status');
-            onValue(usersRef, (snapshot) => {
-                const onlineUsersList = document.getElementById('onlineUsers');
-                onlineUsersList.innerHTML = ''; // Clear the list
-
-                snapshot.forEach((childSnapshot) => {
-                    const user = childSnapshot.val();
-                    if (user.online) {
-                        const userDiv = document.createElement('div');
-                        userDiv.textContent = `${childSnapshot.key} (Online)`;
-                        onlineUsersList.appendChild(userDiv);
-                    }
-                });
-            });
-        }
-
-        listenForOnlineUsers(); // Start listening for online users
-
-        // Cleanup: mark the user as offline when the window is unloaded
-        window.onbeforeunload = function() {
-            updateOnlineStatus(false);
+        // Initialize event listeners
+        window.onload = function() {
+            loadMessages();
+            document.getElementById("sendButton").addEventListener("click", sendMessage);
+            document.getElementById("fileInput").addEventListener("change", handleFileSelect);
         };
 
     </script>
@@ -347,12 +275,8 @@
         <div class="chat-input">
             <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="checkEnter(event)">
             <button id="sendButton">Send</button>
-            <input type="file" id="fileInput" class="file-input" accept="image/*,video/*,.pdf,.doc,.docx" onchange="handleFileSelect(event)">
+            <input type="file" id="fileInput" class="file-input" />
         </div>
-    </div>
-
-    <div class="online-users" id="onlineUsers">
-        <h3>Online Users</h3>
     </div>
 </body>
 </html>
