@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Chat</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
+            authDomain: "apk-center.firebaseapp.com",
+            databaseURL: "https://apk-center-default-rtdb.firebaseio.com",
+            projectId: "apk-center",
+            storageBucket: "apk-center.firebasestorage.app",
+            messagingSenderId: "432966065101",
+            appId: "1:432966065101:web:cb757bae82ece9747c4284",
+            measurementId: "G-VEK05C59R7"
+        };
+
+        // Initialize Firebase and Firestore
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const rdb = getDatabase(app); // For real-time database
+        const storage = getStorage(app); // For Firebase Storage
+
+        let userName = '';
+        let userDocRef = null;
+
+        // Ask for the user's name when the page loads
+        window.onload = function() {
+            userName = prompt("Enter your name:") || "Anonymous"; // If user cancels, set to "Anonymous"
+            updateOnlineStatus(true); // Mark user as online
+            loadMessages();
+        };
+
+        // Update user status to 'online' in Firestore and Realtime Database
+        function updateOnlineStatus(isOnline) {
+            const usersRef = collection(db, "users");
+
+            // Create or update the user document with online status
+            userDocRef = doc(usersRef, userName);
+            setDoc(userDocRef, {
+                name: userName,
+                online: isOnline,
+                last_seen: serverTimestamp(),
+            }, { merge: true });
+
+            // Also update Realtime Database for online presence
+            const userStatusRef = ref(rdb, 'status/' + userName);
+            set(userStatusRef, { online: isOnline });
+
+            // Automatically mark the user as offline when they disconnect
+            if (isOnline) {
+                onDisconnect(userStatusRef).set({ online: false });
+            }
+        }
+
+        // Send a new message to Firestore (handles both text and file messages)
+        async function sendMessage(fileUrl = null) {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+
+            if (text.length === 0 && !fileUrl) return; // Avoid sending empty or just spaces messages
+
+            try {
+                await addDoc(collection(db, "messages"), {
+                    name: userName,
+                    text: text,
+                    fileUrl: fileUrl,
+                    timestamp: serverTimestamp()
+                });
+                input.value = ''; // Clear input field after sending
+                input.focus(); // Refocus the input field
+            } catch (error) {
+                console.error("Error sending message:", error);
+                alert("There was an error sending your message. Please try again.");
+            }
+        }
+
+        // Load messages and listen for real-time updates
+        function loadMessages() {
+            const messages = document.getElementById('messages');
+            const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
+
+            onSnapshot(messagesQuery, (snapshot) => {
+                messages.innerHTML = ''; // Clear messages area
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message ' + (data.name === userName ? 'sender' : 'receiver');
+                    
+                    // Display text message
+                    if (data.text) {
+                        messageDiv.textContent = `${data.name}: ${data.text}`;
+                    }
+
+                    // Display file link or image/video
+                    if (data.fileUrl) {
+                        const fileLink = document.createElement('a');
+                        fileLink.href = data.fileUrl;
+                        fileLink.target = "_blank";
+                        fileLink.textContent = "View File";
+
+                        if (data.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+                            const img = document.createElement('img');
+                            img.src = data.fileUrl;
+                            img.alt = "Image preview";
+                            img.style.maxWidth = "200px";
+                            img.style.marginTop = "5px";
+                            messageDiv.appendChild(img);
+                        } else if (data.fileUrl.match(/\.(mp4|webm)$/i)) {
+                            const video = document.createElement('video');
+                            video.src = data.fileUrl;
+                            video.controls = true;
+                            video.style.maxWidth = "300px";
+                            messageDiv.appendChild(video);
+                        } else {
+                            messageDiv.appendChild(fileLink);
+                        }
+                    }
+
+                    messages.appendChild(messageDiv);
+                });
+
+                // Auto-scroll to latest message only if user is at the bottom
+                const isAtBottom = messages.scrollHeight - messages.scrollTop === messages.clientHeight;
+                if (isAtBottom) {
+                    messages.scrollTop = messages.scrollHeight;
+                }
+            });
+        }
+
+        // Function to check if "Enter" is pressed
+        function checkEnter(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevents the default form submission
+                sendMessage();
+            }
+        }
+
+        // Attach event listener to the "Send" button
+        document.addEventListener("DOMContentLoaded", function() {
+            const sendButton = document.getElementById("sendButton");
+            sendButton.addEventListener("click", sendMessage);
+        });
+
+        // Handle file selection and upload
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+
+            if (!file) return;
+
+            const storageReference = storageRef(storage, 'uploads/' + file.name);
+            const uploadTask = uploadBytesResumable(storageReference, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    // Handle progress or status here (optional)
+                },
+                (error) => {
+                    console.error("Error uploading file:", error);
+                    alert("There was an error uploading the file.");
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        sendMessage(downloadURL); // Send message with the file URL
+                    });
+                }
+            );
+        }
+
+        // Listen for online users and update the user list
+        function listenForOnlineUsers() {
+            const usersRef = ref(rdb, 'status');
+            onValue(usersRef, (snapshot) => {
+                const onlineUsersList = document.getElementById('onlineUsers');
+                onlineUsersList.innerHTML = ''; // Clear the list
+
+                snapshot.forEach((childSnapshot) => {
+                    const user = childSnapshot.val();
+                    if (user.online) {
+                        const userDiv = document.createElement('div');
+                        userDiv.textContent = `${childSnapshot.key} (Online)`;
+                        onlineUsersList.appendChild(userDiv);
+                    }
+                });
+            });
+        }
+
+        listenForOnlineUsers(); // Start listening for online users
+
+        // Cleanup: mark the user as offline when the window is unloaded
+        window.onbeforeunload = function() {
+            updateOnlineStatus(false);
+        };
+
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 500px;
+            height: 90vh;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #4CAF50;
+            color: #ffffff;
+            padding: 15px;
+            font-size: 18px;
+            text-align: center;
+            font-weight: bold;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f7f7f8;
+            scrollbar-width: thin;
+            scrollbar-color: #4CAF50 #f7f7f8;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: #4CAF50;
+            border-radius: 4px;
+        }
+
+        .message {
+            margin: 8px 0;
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 75%;
+            line-height: 1.4;
+            font-size: 15px;
+            word-wrap: break-word;
+            display: inline-block;
+        }
+
+        .message.sender {
+            background-color: #dcf8c6;
+            color: #333;
+            margin-left: auto;
+        }
+
+        .message.receiver {
+            background-color: #f1f0f0;
+            color: #333;
+            margin-right: auto;
+        }
+
+        .chat-input {
+            display: flex;
+            border-top: 1px solid #ddd;
+            background-color: #ffffff;
+            padding: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+            font-size: 15px;
+            margin-right: 10px;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input input:focus {
+            border-color: #4CAF50;
+        }
+
+        .chat-input button {
+            background-color: #4CAF50;
+            color: #ffffff;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: background-color 0.2s;
+        }
+
+        .chat-input button:hover {
+            background-color: #45a049;
+        }
+
+        .file-input {
+            background-color: #4CAF50;
+            color: #ffffff;
+            border: none;
+            border-radius: 50%;
+            padding: 12px;
+            cursor: pointer;
+        }
+
+        .online-users {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+        }
+
+        .online-users div {
+            margin: 5px 0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">Group Chat</div>
+        <div class="chat-messages" id="messages"></div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="checkEnter(event)">
+            <button id="sendButton">Send</button>
+            <input type="file" id="fileInput" class="file-input" accept="image/*,video/*,.pdf,.doc,.docx" onchange="handleFileSelect(event)">
+        </div>
+    </div>
+
+    <div class="online-users" id="onlineUsers">
+        <h3>Online Users</h3>
+    </div>
+</body>
+</html>
