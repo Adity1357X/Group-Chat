@@ -8,6 +8,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
         import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
@@ -24,6 +25,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const rdb = getDatabase(app); // For real-time database
+        const storage = getStorage(app); // For Firebase Storage
 
         let userName = '';
         let userDocRef = null;
@@ -57,17 +59,18 @@
             }
         }
 
-        // Send a new message to Firestore
-        async function sendMessage() {
+        // Send a new message to Firestore (handles both text and file messages)
+        async function sendMessage(fileUrl = null) {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
-            if (text.length === 0) return; // Avoid sending empty or just spaces messages
+            if (text.length === 0 && !fileUrl) return; // Avoid sending empty or just spaces messages
 
             try {
                 await addDoc(collection(db, "messages"), {
                     name: userName,
                     text: text,
+                    fileUrl: fileUrl,
                     timestamp: serverTimestamp()
                 });
                 input.value = ''; // Clear input field after sending
@@ -90,7 +93,37 @@
                     const data = doc.data();
                     const messageDiv = document.createElement('div');
                     messageDiv.className = 'message ' + (data.name === userName ? 'sender' : 'receiver');
-                    messageDiv.textContent = `${data.name}: ${data.text}`;
+                    
+                    // Display text message
+                    if (data.text) {
+                        messageDiv.textContent = `${data.name}: ${data.text}`;
+                    }
+
+                    // Display file link or image/video
+                    if (data.fileUrl) {
+                        const fileLink = document.createElement('a');
+                        fileLink.href = data.fileUrl;
+                        fileLink.target = "_blank";
+                        fileLink.textContent = "View File";
+
+                        if (data.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+                            const img = document.createElement('img');
+                            img.src = data.fileUrl;
+                            img.alt = "Image preview";
+                            img.style.maxWidth = "200px";
+                            img.style.marginTop = "5px";
+                            messageDiv.appendChild(img);
+                        } else if (data.fileUrl.match(/\.(mp4|webm)$/i)) {
+                            const video = document.createElement('video');
+                            video.src = data.fileUrl;
+                            video.controls = true;
+                            video.style.maxWidth = "300px";
+                            messageDiv.appendChild(video);
+                        } else {
+                            messageDiv.appendChild(fileLink);
+                        }
+                    }
+
                     messages.appendChild(messageDiv);
                 });
 
@@ -116,6 +149,31 @@
             sendButton.addEventListener("click", sendMessage);
         });
 
+        // Handle file selection and upload
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+
+            if (!file) return;
+
+            const storageReference = storageRef(storage, 'uploads/' + file.name);
+            const uploadTask = uploadBytesResumable(storageReference, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    // Handle progress or status here (optional)
+                },
+                (error) => {
+                    console.error("Error uploading file:", error);
+                    alert("There was an error uploading the file.");
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        sendMessage(downloadURL); // Send message with the file URL
+                    });
+                }
+            );
+        }
+
         // Listen for online users and update the user list
         function listenForOnlineUsers() {
             const usersRef = ref(rdb, 'status');
@@ -140,30 +198,6 @@
         window.onbeforeunload = function() {
             updateOnlineStatus(false);
         };
-
-        // Reset system (clear messages, reset user status, and allow re-login)
-        function resetChat() {
-            // Automatically mark user as offline and reset the session
-            updateOnlineStatus(false);
-
-            // Clear chat messages from the UI
-            const messagesDiv = document.getElementById('messages');
-            messagesDiv.innerHTML = ''; // Clear messages from the UI
-
-            // Optionally: clear all messages from Firestore if desired
-            // (Be careful with this, as it deletes the messages)
-            // const messagesRef = collection(db, "messages");
-            // const snapshot = await getDocs(messagesRef);
-            // snapshot.forEach((doc) => {
-            //     deleteDoc(doc.ref);
-            // });
-
-            // Allow user to enter a new username after reset
-            userName = prompt("Enter your new name:");
-            if (!userName) userName = "Anonymous";
-            updateOnlineStatus(true); // Mark as online with the new username
-            loadMessages(); // Reload the messages for the new session
-        }
 
     </script>
     <style>
@@ -284,6 +318,15 @@
             background-color: #45a049;
         }
 
+        .file-input {
+            background-color: #4CAF50;
+            color: #ffffff;
+            border: none;
+            border-radius: 50%;
+            padding: 12px;
+            cursor: pointer;
+        }
+
         .online-users {
             margin-top: 20px;
             padding: 10px;
@@ -304,6 +347,7 @@
         <div class="chat-input">
             <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="checkEnter(event)">
             <button id="sendButton">Send</button>
+            <input type="file" id="fileInput" class="file-input" accept="image/*,video/*,.pdf,.doc,.docx" onchange="handleFileSelect(event)">
         </div>
     </div>
 
