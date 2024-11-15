@@ -7,7 +7,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-        import { getDatabase, ref, set, onDisconnect } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
@@ -35,7 +35,7 @@
             loadMessages();
         };
 
-        // Update user status to 'online' in Firestore
+        // Update user status to 'online' in Firestore and Realtime Database
         function updateOnlineStatus(isOnline) {
             const usersRef = collection(db, "users");
 
@@ -118,16 +118,16 @@
 
         // Listen for online users and update the user list
         function listenForOnlineUsers() {
-            const usersRef = collection(db, "users");
-            onSnapshot(usersRef, (snapshot) => {
+            const usersRef = ref(rdb, 'status');
+            onValue(usersRef, (snapshot) => {
                 const onlineUsersList = document.getElementById('onlineUsers');
                 onlineUsersList.innerHTML = ''; // Clear the list
 
-                snapshot.forEach((doc) => {
-                    const user = doc.data();
+                snapshot.forEach((childSnapshot) => {
+                    const user = childSnapshot.val();
                     if (user.online) {
                         const userDiv = document.createElement('div');
-                        userDiv.textContent = `${user.name} (Online)`;
+                        userDiv.textContent = `${childSnapshot.key} (Online)`;
                         onlineUsersList.appendChild(userDiv);
                     }
                 });
@@ -312,3 +312,4 @@
     </div>
 </body>
 </html>
+
