@@ -33,6 +33,8 @@
         function updateOnlineStatus(isOnline) {
             const usersRef = collection(db, "users");
             userDocRef = doc(usersRef, userName);
+
+            // Update user status in Firestore
             setDoc(userDocRef, {
                 name: userName,
                 online: isOnline,
@@ -139,14 +141,34 @@
             }
         }
 
+        // Listen for online users and update the user list in real-time
+        function listenForOnlineUsers() {
+            const usersRef = collection(db, "users");
+            onSnapshot(usersRef, (snapshot) => {
+                const onlineUsersList = document.getElementById('onlineUsers');
+                onlineUsersList.innerHTML = ''; // Clear the list
+
+                snapshot.forEach((doc) => {
+                    const user = doc.data();
+                    if (user.online) {
+                        const userDiv = document.createElement('div');
+                        userDiv.textContent = `${user.name} (Online)`;
+                        onlineUsersList.appendChild(userDiv);
+                    }
+                });
+            });
+        }
+
         // Initialize the app and set event listeners
         window.onload = function() {
             updateOnlineStatus(true); // Mark user as online when page loads
-            loadMessages();
+            loadMessages(); // Load the initial chat messages
 
             // Event listeners
             document.getElementById("sendButton").addEventListener("click", () => sendMessage()); // Send text message
             document.getElementById("fileInput").addEventListener("change", handleFileSelect); // File upload
+
+            listenForOnlineUsers(); // Start listening for online users
         };
 
         // Cleanup: mark the user as offline when leaving the page
@@ -202,15 +224,6 @@
             background-color: #f7f7f8;
             scrollbar-width: thin;
             scrollbar-color: #4CAF50 #f7f7f8;
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background-color: #4CAF50;
-            border-radius: 4px;
         }
 
         .message {
@@ -300,5 +313,10 @@
             <input type="file" id="fileInput" class="file-input" />
         </div>
     </div>
+
+    <div class="online-users" id="onlineUsers">
+        <h3>Online Users</h3>
+    </div>
 </body>
 </html>
+
