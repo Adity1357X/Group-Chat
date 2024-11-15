@@ -21,70 +21,77 @@
             measurementId: "G-VEK05C59R7"
         };
 
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const storage = getStorage(app);
         const rdb = getDatabase(app);
 
-        let userName = prompt("Enter your name:") || "Anonymous";
+        let userName = '';
         let userDocRef = null;
 
-        // Mark user as online in Firestore and Realtime Database
+        // Function to initialize and set up the user
+        window.onload = function() {
+            userName = prompt("Enter your name:") || "Anonymous";  // Prompt for name
+            updateOnlineStatus(true);  // Mark user as online
+            loadMessages();  // Load messages from Firestore
+        };
+
+        // Function to update online status in Firestore and Realtime Database
         function updateOnlineStatus(isOnline) {
             const usersRef = collection(db, "users");
-            userDocRef = doc(usersRef, userName);
 
-            // Update user status in Firestore
+            // Create or update user document in Firestore
+            userDocRef = doc(usersRef, userName);
             setDoc(userDocRef, {
                 name: userName,
                 online: isOnline,
                 last_seen: serverTimestamp(),
             }, { merge: true });
 
-            // Firebase Realtime Database for online status
+            // Also update online status in Firebase Realtime Database
             const userStatusRef = rdbRef(rdb, 'status/' + userName);
             set(userStatusRef, { online: isOnline });
 
-            // Automatically mark user as offline when they disconnect
+            // Automatically mark the user as offline when they disconnect
             if (isOnline) {
                 onDisconnect(userStatusRef).set({ online: false });
             }
         }
 
-        // Send a message to Firestore (including file URL if available)
+        // Function to send a message (including handling file uploads)
         async function sendMessage(fileUrl = null) {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
-            if (text.length === 0 && !fileUrl) return; // Avoid empty messages
+            if (text.length === 0 && !fileUrl) return;  // Don't send empty messages
 
             try {
                 await addDoc(collection(db, "messages"), {
                     name: userName,
                     text: text,
-                    fileUrl: fileUrl,
+                    fileUrl: fileUrl, // Include file URL if file was uploaded
                     timestamp: serverTimestamp()
                 });
                 input.value = ''; // Clear input field after sending
-                input.focus(); // Refocus the input field
+                input.focus(); // Focus back on the input field
             } catch (error) {
                 console.error("Error sending message:", error);
                 alert("There was an error sending your message. Please try again.");
             }
         }
 
-        // Handle file selection and upload to Firebase Storage
+        // Function to handle file selection and upload
         function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) return;  // If no file is selected, do nothing
 
-            const fileName = Date.now() + "_" + file.name; // Ensure unique filename
+            const fileName = Date.now() + "_" + file.name;  // Unique filename
             const storageRef = ref(storage, 'uploads/' + fileName);
             const uploadTask = uploadBytesResumable(storageRef, file);
 
             uploadTask.on('state_changed', 
                 (snapshot) => {
-                    // Optionally log upload progress
                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                     console.log(`Upload Progress: ${progress}%`);
                 },
@@ -93,20 +100,21 @@
                     alert("There was an error uploading the file.");
                 },
                 () => {
+                    // Get download URL once the upload is complete
                     getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                        console.log("File uploaded successfully, URL:", downloadURL);
-                        sendMessage(downloadURL); // Send the message with the file URL
+                        console.log("File uploaded successfully:", downloadURL);
+                        sendMessage(downloadURL);  // Send the message with file URL
                     });
                 }
             );
         }
 
-        // Listen for new messages in Firestore
+        // Function to load messages from Firestore
         function loadMessages() {
             const messages = document.getElementById('messages');
             const query = collection(db, "messages");
             onSnapshot(query, (snapshot) => {
-                messages.innerHTML = ''; // Clear messages
+                messages.innerHTML = '';  // Clear messages
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
@@ -114,6 +122,7 @@
                     messageDiv.className = 'message ' + (data.name === userName ? 'sender' : 'receiver');
                     messageDiv.textContent = `${data.name}: ${data.text}`;
                     
+                    // If the message has a file URL, display a link
                     if (data.fileUrl) {
                         const fileLink = document.createElement('a');
                         fileLink.href = data.fileUrl;
@@ -125,7 +134,7 @@
                     messages.appendChild(messageDiv);
                 });
 
-                // Auto-scroll to latest message
+                // Auto-scroll to the latest message
                 const isAtBottom = messages.scrollHeight - messages.scrollTop === messages.clientHeight;
                 if (isAtBottom) {
                     messages.scrollTop = messages.scrollHeight;
@@ -133,7 +142,7 @@
             });
         }
 
-        // Handle "Enter" key for message sending
+        // Function to check if "Enter" key is pressed to send message
         function checkEnter(event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -141,12 +150,12 @@
             }
         }
 
-        // Listen for online users and update the user list in real-time
+        // Function to listen for online users and update the online list in real-time
         function listenForOnlineUsers() {
             const usersRef = collection(db, "users");
             onSnapshot(usersRef, (snapshot) => {
                 const onlineUsersList = document.getElementById('onlineUsers');
-                onlineUsersList.innerHTML = ''; // Clear the list
+                onlineUsersList.innerHTML = '';  // Clear the list
 
                 snapshot.forEach((doc) => {
                     const user = doc.data();
@@ -159,22 +168,17 @@
             });
         }
 
-        // Initialize the app and set event listeners
-        window.onload = function() {
-            updateOnlineStatus(true); // Mark user as online when page loads
-            loadMessages(); // Load the initial chat messages
-
-            // Event listeners
-            document.getElementById("sendButton").addEventListener("click", () => sendMessage()); // Send text message
-            document.getElementById("fileInput").addEventListener("change", handleFileSelect); // File upload
-
-            listenForOnlineUsers(); // Start listening for online users
-        };
-
-        // Cleanup: mark the user as offline when leaving the page
+        // Cleanup: mark the user as offline when they leave the page
         window.onbeforeunload = function() {
             updateOnlineStatus(false);
         };
+
+        // Set up event listeners
+        document.getElementById("sendButton").addEventListener("click", () => sendMessage());  // Send text message
+        document.getElementById("fileInput").addEventListener("change", handleFileSelect);  // Handle file upload
+
+        // Initialize listeners
+        listenForOnlineUsers();  // Start listening for online users
     </script>
 
     <style>
@@ -264,11 +268,6 @@
             outline: none;
             font-size: 15px;
             margin-right: 10px;
-            transition: border-color 0.2s;
-        }
-
-        .chat-input input:focus {
-            border-color: #4CAF50;
         }
 
         .chat-input button {
@@ -279,11 +278,6 @@
             padding: 10px 20px;
             cursor: pointer;
             font-size: 15px;
-            transition: background-color 0.2s;
-        }
-
-        .chat-input button:hover {
-            background-color: #45a049;
         }
 
         .file-input {
