@@ -6,42 +6,40 @@
     <title>Group Chat</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
-        import { getDatabase, ref as rdbRef, set, onDisconnect } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        import { getDatabase, ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
             authDomain: "apk-center.firebaseapp.com",
             databaseURL: "https://apk-center-default-rtdb.firebaseio.com",
             projectId: "apk-center",
-            storageBucket: "apk-center.appspot.com",
+            storageBucket: "apk-center.firebasestorage.app",
             messagingSenderId: "432966065101",
             appId: "1:432966065101:web:cb757bae82ece9747c4284",
             measurementId: "G-VEK05C59R7"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase and Firestore
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const storage = getStorage(app);
-        const rdb = getDatabase(app);
+        const rdb = getDatabase(app); // For real-time database
 
         let userName = '';
         let userDocRef = null;
 
-        // Function to initialize and set up the user
+        // Ask for the user's name when the page loads
         window.onload = function() {
-            userName = prompt("Enter your name:") || "Anonymous";  // Prompt for name
-            updateOnlineStatus(true);  // Mark user as online
-            loadMessages();  // Load messages from Firestore
+            userName = prompt("Enter your name:") || "Anonymous"; // If user cancels, set to "Anonymous"
+            updateOnlineStatus(true); // Mark user as online
+            loadMessages();
         };
 
-        // Function to update online status in Firestore and Realtime Database
+        // Update user status to 'online' in Firestore and Realtime Database
         function updateOnlineStatus(isOnline) {
             const usersRef = collection(db, "users");
 
-            // Create or update user document in Firestore
+            // Create or update the user document with online status
             userDocRef = doc(usersRef, userName);
             setDoc(userDocRef, {
                 name: userName,
@@ -49,8 +47,8 @@
                 last_seen: serverTimestamp(),
             }, { merge: true });
 
-            // Also update online status in Firebase Realtime Database
-            const userStatusRef = rdbRef(rdb, 'status/' + userName);
+            // Also update Realtime Database for online presence
+            const userStatusRef = ref(rdb, 'status/' + userName);
             set(userStatusRef, { online: isOnline });
 
             // Automatically mark the user as offline when they disconnect
@@ -59,82 +57,44 @@
             }
         }
 
-        // Function to send a message (including handling file uploads)
-        async function sendMessage(fileUrl = null) {
+        // Send a new message to Firestore
+        async function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
-            if (text.length === 0 && !fileUrl) return;  // Don't send empty messages
+            if (text.length === 0) return; // Avoid sending empty or just spaces messages
 
             try {
                 await addDoc(collection(db, "messages"), {
                     name: userName,
                     text: text,
-                    fileUrl: fileUrl, // Include file URL if file was uploaded
                     timestamp: serverTimestamp()
                 });
                 input.value = ''; // Clear input field after sending
-                input.focus(); // Focus back on the input field
+                input.focus(); // Refocus the input field
             } catch (error) {
                 console.error("Error sending message:", error);
                 alert("There was an error sending your message. Please try again.");
             }
         }
 
-        // Function to handle file selection and upload
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;  // If no file is selected, do nothing
-
-            const fileName = Date.now() + "_" + file.name;  // Unique filename
-            const storageRef = ref(storage, 'uploads/' + fileName);
-            const uploadTask = uploadBytesResumable(storageRef, file);
-
-            uploadTask.on('state_changed', 
-                (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    console.log(`Upload Progress: ${progress}%`);
-                },
-                (error) => {
-                    console.error("Error uploading file:", error);
-                    alert("There was an error uploading the file.");
-                },
-                () => {
-                    // Get download URL once the upload is complete
-                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                        console.log("File uploaded successfully:", downloadURL);
-                        sendMessage(downloadURL);  // Send the message with file URL
-                    });
-                }
-            );
-        }
-
-        // Function to load messages from Firestore
+        // Load messages and listen for real-time updates
         function loadMessages() {
             const messages = document.getElementById('messages');
-            const query = collection(db, "messages");
-            onSnapshot(query, (snapshot) => {
-                messages.innerHTML = '';  // Clear messages
+            const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
+
+            onSnapshot(messagesQuery, (snapshot) => {
+                messages.innerHTML = ''; // Clear messages area
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     const messageDiv = document.createElement('div');
                     messageDiv.className = 'message ' + (data.name === userName ? 'sender' : 'receiver');
                     messageDiv.textContent = `${data.name}: ${data.text}`;
-                    
-                    // If the message has a file URL, display a link
-                    if (data.fileUrl) {
-                        const fileLink = document.createElement('a');
-                        fileLink.href = data.fileUrl;
-                        fileLink.target = "_blank";
-                        fileLink.textContent = "View File";
-                        messageDiv.appendChild(fileLink);
-                    }
-
                     messages.appendChild(messageDiv);
                 });
 
-                // Auto-scroll to the latest message
+                // Auto-scroll to latest message only if user is at the bottom
                 const isAtBottom = messages.scrollHeight - messages.scrollTop === messages.clientHeight;
                 if (isAtBottom) {
                     messages.scrollTop = messages.scrollHeight;
@@ -142,45 +102,70 @@
             });
         }
 
-        // Function to check if "Enter" key is pressed to send message
+        // Function to check if "Enter" is pressed
         function checkEnter(event) {
             if (event.key === 'Enter') {
-                event.preventDefault();
+                event.preventDefault(); // Prevents the default form submission
                 sendMessage();
             }
         }
 
-        // Function to listen for online users and update the online list in real-time
-        function listenForOnlineUsers() {
-            const usersRef = collection(db, "users");
-            onSnapshot(usersRef, (snapshot) => {
-                const onlineUsersList = document.getElementById('onlineUsers');
-                onlineUsersList.innerHTML = '';  // Clear the list
+        // Attach event listener to the "Send" button
+        document.addEventListener("DOMContentLoaded", function() {
+            const sendButton = document.getElementById("sendButton");
+            sendButton.addEventListener("click", sendMessage);
+        });
 
-                snapshot.forEach((doc) => {
-                    const user = doc.data();
+        // Listen for online users and update the user list
+        function listenForOnlineUsers() {
+            const usersRef = ref(rdb, 'status');
+            onValue(usersRef, (snapshot) => {
+                const onlineUsersList = document.getElementById('onlineUsers');
+                onlineUsersList.innerHTML = ''; // Clear the list
+
+                snapshot.forEach((childSnapshot) => {
+                    const user = childSnapshot.val();
                     if (user.online) {
                         const userDiv = document.createElement('div');
-                        userDiv.textContent = `${user.name} (Online)`;
+                        userDiv.textContent = `${childSnapshot.key} (Online)`;
                         onlineUsersList.appendChild(userDiv);
                     }
                 });
             });
         }
 
-        // Cleanup: mark the user as offline when they leave the page
+        listenForOnlineUsers(); // Start listening for online users
+
+        // Cleanup: mark the user as offline when the window is unloaded
         window.onbeforeunload = function() {
             updateOnlineStatus(false);
         };
 
-        // Set up event listeners
-        document.getElementById("sendButton").addEventListener("click", () => sendMessage());  // Send text message
-        document.getElementById("fileInput").addEventListener("change", handleFileSelect);  // Handle file upload
+        // Reset system (clear messages, reset user status, and allow re-login)
+        function resetChat() {
+            // Automatically mark user as offline and reset the session
+            updateOnlineStatus(false);
 
-        // Initialize listeners
-        listenForOnlineUsers();  // Start listening for online users
+            // Clear chat messages from the UI
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = ''; // Clear messages from the UI
+
+            // Optionally: clear all messages from Firestore if desired
+            // (Be careful with this, as it deletes the messages)
+            // const messagesRef = collection(db, "messages");
+            // const snapshot = await getDocs(messagesRef);
+            // snapshot.forEach((doc) => {
+            //     deleteDoc(doc.ref);
+            // });
+
+            // Allow user to enter a new username after reset
+            userName = prompt("Enter your new name:");
+            if (!userName) userName = "Anonymous";
+            updateOnlineStatus(true); // Mark as online with the new username
+            loadMessages(); // Reload the messages for the new session
+        }
+
     </script>
-
     <style>
         * {
             box-sizing: border-box;
@@ -230,6 +215,15 @@
             scrollbar-color: #4CAF50 #f7f7f8;
         }
 
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: #4CAF50;
+            border-radius: 4px;
+        }
+
         .message {
             margin: 8px 0;
             padding: 10px 15px;
@@ -268,6 +262,11 @@
             outline: none;
             font-size: 15px;
             margin-right: 10px;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input input:focus {
+            border-color: #4CAF50;
         }
 
         .chat-input button {
@@ -278,10 +277,11 @@
             padding: 10px 20px;
             cursor: pointer;
             font-size: 15px;
+            transition: background-color 0.2s;
         }
 
-        .file-input {
-            display: none;
+        .chat-input button:hover {
+            background-color: #45a049;
         }
 
         .online-users {
@@ -304,7 +304,6 @@
         <div class="chat-input">
             <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="checkEnter(event)">
             <button id="sendButton">Send</button>
-            <input type="file" id="fileInput" class="file-input" />
         </div>
     </div>
 
@@ -313,4 +312,3 @@
     </div>
 </body>
 </html>
-
