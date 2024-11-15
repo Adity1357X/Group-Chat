@@ -6,8 +6,9 @@
     <title>Group Chat</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+        import { getDatabase, ref as rdbRef, set, onDisconnect } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
@@ -23,17 +24,37 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const storage = getStorage(app);
+        const rdb = getDatabase(app);
 
         let userName = prompt("Enter your name:") || "Anonymous";
+        let userDocRef = null;
 
-        // Send message to Firestore
+        // Mark user as online in Firestore and Realtime Database
+        function updateOnlineStatus(isOnline) {
+            const usersRef = collection(db, "users");
+            userDocRef = doc(usersRef, userName);
+            setDoc(userDocRef, {
+                name: userName,
+                online: isOnline,
+                last_seen: serverTimestamp(),
+            }, { merge: true });
+
+            // Firebase Realtime Database for online status
+            const userStatusRef = rdbRef(rdb, 'status/' + userName);
+            set(userStatusRef, { online: isOnline });
+
+            // Automatically mark user as offline when they disconnect
+            if (isOnline) {
+                onDisconnect(userStatusRef).set({ online: false });
+            }
+        }
+
+        // Send a message to Firestore (including file URL if available)
         async function sendMessage(fileUrl = null) {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
-            if (text.length === 0 && !fileUrl) {
-                return; // Avoid sending empty or just spaces messages
-            }
+            if (text.length === 0 && !fileUrl) return; // Avoid empty messages
 
             try {
                 await addDoc(collection(db, "messages"), {
@@ -45,46 +66,45 @@
                 input.value = ''; // Clear input field after sending
                 input.focus(); // Refocus the input field
             } catch (error) {
-                console.error("Error sending message:", error); // Log the error to the console
+                console.error("Error sending message:", error);
                 alert("There was an error sending your message. Please try again.");
             }
         }
 
-        // Handle file selection (upload to Firebase Storage)
+        // Handle file selection and upload to Firebase Storage
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const fileName = Date.now() + "_" + file.name; // Unique file name to avoid collisions
+            const fileName = Date.now() + "_" + file.name; // Ensure unique filename
             const storageRef = ref(storage, 'uploads/' + fileName);
             const uploadTask = uploadBytesResumable(storageRef, file);
 
-            // Monitor the upload process
             uploadTask.on('state_changed', 
                 (snapshot) => {
-                    // Optionally log progress
+                    // Optionally log upload progress
                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                     console.log(`Upload Progress: ${progress}%`);
                 },
                 (error) => {
-                    console.error("Error uploading file:", error); // Log upload error
+                    console.error("Error uploading file:", error);
                     alert("There was an error uploading the file.");
                 },
                 () => {
                     getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
                         console.log("File uploaded successfully, URL:", downloadURL);
-                        sendMessage(downloadURL); // Send message with the file URL
+                        sendMessage(downloadURL); // Send the message with the file URL
                     });
                 }
             );
         }
 
-        // Listen for new messages
+        // Listen for new messages in Firestore
         function loadMessages() {
             const messages = document.getElementById('messages');
             const query = collection(db, "messages");
             onSnapshot(query, (snapshot) => {
-                messages.innerHTML = ''; // Clear messages area
+                messages.innerHTML = ''; // Clear messages
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
@@ -92,7 +112,6 @@
                     messageDiv.className = 'message ' + (data.name === userName ? 'sender' : 'receiver');
                     messageDiv.textContent = `${data.name}: ${data.text}`;
                     
-                    // If there's a file URL, display the file accordingly
                     if (data.fileUrl) {
                         const fileLink = document.createElement('a');
                         fileLink.href = data.fileUrl;
@@ -104,7 +123,7 @@
                     messages.appendChild(messageDiv);
                 });
 
-                // Auto-scroll to the latest message
+                // Auto-scroll to latest message
                 const isAtBottom = messages.scrollHeight - messages.scrollTop === messages.clientHeight;
                 if (isAtBottom) {
                     messages.scrollTop = messages.scrollHeight;
@@ -112,7 +131,7 @@
             });
         }
 
-        // Handle Enter key press in the message input
+        // Handle "Enter" key for message sending
         function checkEnter(event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -120,14 +139,22 @@
             }
         }
 
-        // Initialize event listeners
+        // Initialize the app and set event listeners
         window.onload = function() {
+            updateOnlineStatus(true); // Mark user as online when page loads
             loadMessages();
-            document.getElementById("sendButton").addEventListener("click", sendMessage);
-            document.getElementById("fileInput").addEventListener("change", handleFileSelect);
+
+            // Event listeners
+            document.getElementById("sendButton").addEventListener("click", () => sendMessage()); // Send text message
+            document.getElementById("fileInput").addEventListener("change", handleFileSelect); // File upload
         };
 
+        // Cleanup: mark the user as offline when leaving the page
+        window.onbeforeunload = function() {
+            updateOnlineStatus(false);
+        };
     </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -247,12 +274,7 @@
         }
 
         .file-input {
-            background-color: #4CAF50;
-            color: #ffffff;
-            border: none;
-            border-radius: 50%;
-            padding: 12px;
-            cursor: pointer;
+            display: none;
         }
 
         .online-users {
@@ -280,4 +302,3 @@
     </div>
 </body>
 </html>
-
