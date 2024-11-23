@@ -27,13 +27,10 @@
 
         let userName = '';
         let userDocRef = null;
+        let isLocked = true; // Track whether the chat is locked
+        const correctPassword = 'chat123'; // Set your password here
 
-        window.onload = function() {
-            userName = prompt("Enter your name:") || "Anonymous";
-            updateOnlineStatus(true);
-            loadMessages();
-        };
-
+        // Function to update user's online status in both Firestore and Realtime Database
         function updateOnlineStatus(isOnline) {
             const usersRef = collection(db, "users");
             userDocRef = doc(usersRef, userName);
@@ -51,6 +48,7 @@
             }
         }
 
+        // Function to send a message
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
@@ -71,6 +69,7 @@
             }
         }
 
+        // Function to load chat messages from Firestore
         function loadMessages() {
             const messages = document.getElementById('messages');
             const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
@@ -93,6 +92,7 @@
             });
         }
 
+        // Function to handle the "Enter" key press for sending a message
         function checkEnter(event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -108,21 +108,32 @@
             const messageInput = document.getElementById("messageInput");
             const sendButtonElement = document.getElementById("sendButton");
 
-            let isLocked = true;
-
             lockButton.addEventListener("click", () => {
-                isLocked = !isLocked;
-                messageInput.disabled = isLocked;
-                sendButtonElement.disabled = isLocked;
-
-                lockButton.textContent = isLocked ? "Unlock" : "Lock";
-
-                if (!isLocked) {
-                    messageInput.focus();
+                if (isLocked) {
+                    const enteredPassword = prompt("Enter the password to unlock the chat:");
+                    if (enteredPassword === correctPassword) {
+                        isLocked = false;
+                        messageInput.disabled = false;
+                        sendButtonElement.disabled = false;
+                        lockButton.textContent = "Lock";
+                        messageInput.focus();
+                        userName = prompt("Enter your name:") || "Anonymous";
+                        updateOnlineStatus(true);
+                        loadMessages();
+                    } else {
+                        alert("Incorrect password!");
+                    }
+                } else {
+                    isLocked = true;
+                    messageInput.disabled = true;
+                    sendButtonElement.disabled = true;
+                    lockButton.textContent = "Unlock";
+                    updateOnlineStatus(false);
                 }
             });
         });
 
+        // Listen for and display online users
         function listenForOnlineUsers() {
             const usersRef = ref(rdb, 'status');
             onValue(usersRef, (snapshot) => {
@@ -142,6 +153,7 @@
 
         listenForOnlineUsers();
 
+        // Update user's status when they leave the page
         window.onbeforeunload = function() {
             updateOnlineStatus(false);
         };
@@ -297,4 +309,3 @@
     <div class="online-users" id="onlineUsers"></div>
 </body>
 </html>
-
