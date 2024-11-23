@@ -28,18 +28,14 @@
         let userName = '';
         let userDocRef = null;
 
-        // Ask for the user's name when the page loads
         window.onload = function() {
-            userName = prompt("Enter your name:") || "Anonymous"; // If user cancels, set to "Anonymous"
-            updateOnlineStatus(true); // Mark user as online
+            userName = prompt("Enter your name:") || "Anonymous";
+            updateOnlineStatus(true);
             loadMessages();
         };
 
-        // Update user status to 'online' in Firestore and Realtime Database
         function updateOnlineStatus(isOnline) {
             const usersRef = collection(db, "users");
-
-            // Create or update the user document with online status
             userDocRef = doc(usersRef, userName);
             setDoc(userDocRef, {
                 name: userName,
@@ -47,22 +43,19 @@
                 last_seen: serverTimestamp(),
             }, { merge: true });
 
-            // Also update Realtime Database for online presence
             const userStatusRef = ref(rdb, 'status/' + userName);
             set(userStatusRef, { online: isOnline });
 
-            // Automatically mark the user as offline when they disconnect
             if (isOnline) {
                 onDisconnect(userStatusRef).set({ online: false });
             }
         }
 
-        // Send a new message to Firestore
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
-            if (text.length === 0) return; // Avoid sending empty or just spaces messages
+            if (text.length === 0) return;
 
             try {
                 await addDoc(collection(db, "messages"), {
@@ -70,21 +63,20 @@
                     text: text,
                     timestamp: serverTimestamp()
                 });
-                input.value = ''; // Clear input field after sending
-                input.focus(); // Refocus the input field
+                input.value = '';
+                input.focus();
             } catch (error) {
                 console.error("Error sending message:", error);
                 alert("There was an error sending your message. Please try again.");
             }
         }
 
-        // Load messages and listen for real-time updates
         function loadMessages() {
             const messages = document.getElementById('messages');
             const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
 
             onSnapshot(messagesQuery, (snapshot) => {
-                messages.innerHTML = ''; // Clear messages area
+                messages.innerHTML = '';
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
@@ -94,7 +86,6 @@
                     messages.appendChild(messageDiv);
                 });
 
-                // Auto-scroll to latest message only if user is at the bottom
                 const isAtBottom = messages.scrollHeight - messages.scrollTop === messages.clientHeight;
                 if (isAtBottom) {
                     messages.scrollTop = messages.scrollHeight;
@@ -102,26 +93,41 @@
             });
         }
 
-        // Function to check if "Enter" is pressed
         function checkEnter(event) {
             if (event.key === 'Enter') {
-                event.preventDefault(); // Prevents the default form submission
+                event.preventDefault();
                 sendMessage();
             }
         }
 
-        // Attach event listener to the "Send" button
         document.addEventListener("DOMContentLoaded", function() {
             const sendButton = document.getElementById("sendButton");
             sendButton.addEventListener("click", sendMessage);
+
+            const lockButton = document.getElementById("lockButton");
+            const messageInput = document.getElementById("messageInput");
+            const sendButtonElement = document.getElementById("sendButton");
+
+            let isLocked = true;
+
+            lockButton.addEventListener("click", () => {
+                isLocked = !isLocked;
+                messageInput.disabled = isLocked;
+                sendButtonElement.disabled = isLocked;
+
+                lockButton.textContent = isLocked ? "Unlock" : "Lock";
+
+                if (!isLocked) {
+                    messageInput.focus();
+                }
+            });
         });
 
-        // Listen for online users and update the user list
         function listenForOnlineUsers() {
             const usersRef = ref(rdb, 'status');
             onValue(usersRef, (snapshot) => {
                 const onlineUsersList = document.getElementById('onlineUsers');
-                onlineUsersList.innerHTML = ''; // Clear the list
+                onlineUsersList.innerHTML = '';
 
                 snapshot.forEach((childSnapshot) => {
                     const user = childSnapshot.val();
@@ -134,36 +140,11 @@
             });
         }
 
-        listenForOnlineUsers(); // Start listening for online users
+        listenForOnlineUsers();
 
-        // Cleanup: mark the user as offline when the window is unloaded
         window.onbeforeunload = function() {
             updateOnlineStatus(false);
         };
-
-        // Reset system (clear messages, reset user status, and allow re-login)
-        function resetChat() {
-            // Automatically mark user as offline and reset the session
-            updateOnlineStatus(false);
-
-            // Clear chat messages from the UI
-            const messagesDiv = document.getElementById('messages');
-            messagesDiv.innerHTML = ''; // Clear messages from the UI
-
-            // Optionally: clear all messages from Firestore if desired
-            // (Be careful with this, as it deletes the messages)
-            // const messagesRef = collection(db, "messages");
-            // const snapshot = await getDocs(messagesRef);
-            // snapshot.forEach((doc) => {
-            //     deleteDoc(doc.ref);
-            // });
-
-            // Allow user to enter a new username after reset
-            userName = prompt("Enter your new name:");
-            if (!userName) userName = "Anonymous";
-            updateOnlineStatus(true); // Mark as online with the new username
-            loadMessages(); // Reload the messages for the new session
-        }
 
     </script>
     <style>
@@ -204,6 +185,25 @@
             font-weight: bold;
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
+            position: relative;
+        }
+
+        .lock-button {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background-color: #ff5722;
+            color: #ffffff;
+            border: none;
+            border-radius: 20px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .lock-button:hover {
+            background-color: #e64a19;
         }
 
         .chat-messages {
@@ -215,15 +215,6 @@
             scrollbar-color: #4CAF50 #f7f7f8;
         }
 
-        .chat-messages::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background-color: #4CAF50;
-            border-radius: 4px;
-        }
-
         .message {
             margin: 8px 0;
             padding: 10px 15px;
@@ -232,19 +223,15 @@
             line-height: 1.4;
             font-size: 15px;
             word-wrap: break-word;
-            display: inline-block;
         }
 
         .message.sender {
             background-color: #dcf8c6;
-            color: #333;
             margin-left: auto;
         }
 
         .message.receiver {
             background-color: #f1f0f0;
-            color: #333;
-            margin-right: auto;
         }
 
         .chat-input {
@@ -262,7 +249,6 @@
             outline: none;
             font-size: 15px;
             margin-right: 10px;
-            transition: border-color 0.2s;
         }
 
         .chat-input input:focus {
@@ -277,7 +263,6 @@
             padding: 10px 20px;
             cursor: pointer;
             font-size: 15px;
-            transition: background-color 0.2s;
         }
 
         .chat-input button:hover {
@@ -299,16 +284,16 @@
 </head>
 <body>
     <div class="chat-container">
-        <div class="chat-header">Group Chat</div>
+        <div class="chat-header">
+            Group Chat
+            <button id="lockButton" class="lock-button">Unlock</button>
+        </div>
         <div class="chat-messages" id="messages"></div>
         <div class="chat-input">
-            <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="checkEnter(event)">
-            <button id="sendButton">Send</button>
+            <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="checkEnter(event)" disabled>
+            <button id="sendButton" disabled>Send</button>
         </div>
     </div>
-
-    <div class="online-users" id="onlineUsers">
-        <h3>Online Users</h3>
-    </div>
+    <div class="online-users" id="onlineUsers"></div>
 </body>
 </html>
