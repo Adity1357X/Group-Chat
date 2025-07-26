@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WhatsApp-Style Secure Chat 🔐</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(-45deg, #0f0f0f, #1a1a2e, #16213e, #0f3460);
+      background-size: 400% 400%;
+      animation: bgShift 15s ease infinite alternate;
+      color: #fff;
+      overflow: hidden;
+    }
+    @keyframes bgShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* —— Login Screen —— */
+    #login-screen {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.6);
+      padding: 30px;
+      border-radius: 8px;
+      text-align: center;
+      width: 280px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    #login-screen h2 {
+      margin-bottom: 20px;
+      font-size: 1.4rem;
+    }
+    #login-screen input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      border: none;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+    #login-screen button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      background: #34b7f1;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    #login-screen button:hover {
+      background: #1da1f2;
+    }
+
+    /* —— Chat Container (hidden initially) —— */
+    #chat-container {
+      display: none;
+      padding: 20px;
+      max-width: 600px;
+      margin: 50px auto;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    #chat-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #messages {
+      max-height: 350px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    .msg {
+      position: relative;
+      max-width: 80%;
+      padding: 8px 12px;
+      margin: 8px 0;
+      font-size: 14px;
+      line-height: 1.4;
+      clear: both;
+    }
+    .theirs {
+      background: #fff; color: #000;
+      border: 1px solid #e2e2e2;
+      border-radius: 18px 18px 18px 0;
+      align-self: flex-start;
+    }
+    .theirs::before {
+      content: "";
+      position: absolute;
+      left: -6px; bottom: 0;
+      border: 6px solid transparent;
+      border-top-color: #fff;
+      border-bottom: 0;
+      margin-bottom: -6px;
+    }
+    .mine {
+      background: #dcf8c6; color: #000;
+      border-radius: 18px 18px 0 18px;
+      align-self: flex-end;
+    }
+    .mine::after {
+      content: "";
+      position: absolute;
+      right: -6px; bottom: 0;
+      border: 6px solid transparent;
+      border-top-color: #dcf8c6;
+      border-bottom: 0;
+      margin-bottom: -6px;
+    }
+    .sender { font-weight: bold; margin-bottom: 4px; color: #555; }
+    .time { font-size: 0.75rem; color: #777; text-align: right; margin-top: 4px; }
+
+    #message {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: none;
+      box-sizing: border-box;
+    }
+    button.send, button.delete-all {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button.send {
+      background: #34b7f1;
+      color: #fff;
+    }
+    button.send:hover {
+      background: #1da1f2;
+    }
+    button.delete-all {
+      background: #e74c3c;
+      color: #fff;
+    }
+    button.delete-all:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <h2>Enter Chat Password</h2>
+    <input type="password" id="chat-password" placeholder="Password…" />
+    <button id="login-btn">Unlock Chat 🔓</button>
+    <div id="login-error" style="color:#e74c3c; margin-top:10px; display:none;">
+      Wrong password, try again.
+    </div>
+  </div>
+
+  <!-- Chat Container (hidden until login) -->
+  <div id="chat-container">
+    <h2>Secure WhatsApp-Style Chat 🔐</h2>
+    <div id="messages"></div>
+    <input type="text" id="message" placeholder="Type your message…" />
+    <button class="send" onclick="sendMessage()">Send</button>
+    <button class="delete-all" onclick="deleteAll()">Delete All Messages</button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    // Configuration
+    const CHAT_PASSWORD = "5715";       // password for entry
+    const DELETE_CODE   = "5757";       // code for deleting all messages
+
+    // Elements
+    const loginScreen  = document.getElementById("login-screen");
+    const chatContainer= document.getElementById("chat-container");
+    const loginBtn     = document.getElementById("login-btn");
+    const pwdInput     = document.getElementById("chat-password");
+    const loginError   = document.getElementById("login-error");
+
+    // 1) Handle Login
+    loginBtn.addEventListener("click", () => {
+      if (pwdInput.value === CHAT_PASSWORD) {
+        loginScreen.style.display  = "none";
+        chatContainer.style.display= "block";
+        initChat();
+      } else {
+        loginError.style.display = "block";
+      }
+    });
+
+    function initChat() {
+      // Prompt for Name
+      const userName = prompt("Enter your name:") || "Anonymous";
+      const userId   = Date.now() + '_' + Math.random().toString(36).slice(2);
+
+      // Firebase Init
+      const cfg = {
+        apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
+        authDomain: "apk-center.firebaseapp.com",
+        databaseURL: "https://apk-center-default-rtdb.firebaseio.com",
+        projectId: "apk-center",
+        storageBucket: "apk-center.appspot.com",
+        messagingSenderId: "432966065101",
+        appId: "1:432966065101:web:cb757bae82ece9747c4284"
+      };
+      firebase.initializeApp(cfg);
+      const db = firebase.database();
+      const msgInput    = document.getElementById("message");
+      const messagesEl  = document.getElementById("messages");
+
+      // Send a new message
+      window.sendMessage = () => {
+        const text = msgInput.value.trim();
+        if (!text) return;
+        db.ref("messages").push({
+          sender:    userName,
+          userId:    userId,
+          message:   text,
+          timestamp: Date.now()
+        });
+        msgInput.value = "";
+      };
+
+      // Delete all messages
+      window.deleteAll = () => {
+        const code = prompt("Enter delete code:");
+        if (code === DELETE_CODE) {
+          db.ref("messages").remove().then(() => {
+            messagesEl.innerHTML = "";
+          });
+        } else {
+          alert("❌ Wrong code");
+        }
+      };
+
+      // Render incoming messages
+      db.ref("messages").on("child_added", snap => {
+        const { sender, userId: uid, message, timestamp } = snap.val();
+        if (!sender || !message) return;
+        const isMine = uid === userId;
+
+        const bubble = document.createElement("div");
+        bubble.className = "msg " + (isMine ? "mine" : "theirs");
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "sender";
+        nameEl.textContent = sender;
+
+        const textEl = document.createElement("div");
+        textEl.textContent = message;
+
+        const timeEl = document.createElement("div");
+        timeEl.className = "time";
+        timeEl.textContent = new Date(timestamp).toLocaleTimeString();
+
+        bubble.append(nameEl, textEl, timeEl);
+        messagesEl.appendChild(bubble);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      });
+
+      // Remove deleted messages from UI
+      db.ref("messages").on("child_removed", snap => {
+        const val = snap.val();
+        Array.from(messagesEl.children).forEach(node => {
+          if (
+            node.querySelector(".sender")?.textContent === val.sender &&
+            node.querySelector("div:nth-child(2)")?.textContent === val.message
+          ) {
+            messagesEl.removeChild(node);
+          }
+        });
+      });
+    }
+  </script>
+</body>
+  </html>
