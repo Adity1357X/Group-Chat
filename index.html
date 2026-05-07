@@ -2,293 +2,647 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WhatsApp-Style Secure Chat 🔐</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Secure Chat 🔐</title>
+
   <style>
-    body {
-      margin: 0; padding: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(-45deg, #0f0f0f, #1a1a2e, #16213e, #0f3460);
-      background-size: 400% 400%;
-      animation: bgShift 15s ease infinite alternate;
-      color: #fff;
-      overflow: hidden;
-    }
-    @keyframes bgShift {
-      0%   { background-position: 0% 50%; }
-      50%  { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    body{
+      margin:0;
+      padding:0;
+      font-family:'Segoe UI',sans-serif;
+      background:linear-gradient(-45deg,#0f0f0f,#1a1a2e,#16213e,#0f3460);
+      background-size:400% 400%;
+      animation:bgShift 15s ease infinite alternate;
+      color:white;
+      overflow:hidden;
     }
 
-    /* —— Login Screen —— */
-    #login-screen {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.6);
-      padding: 30px;
-      border-radius: 8px;
-      text-align: center;
-      width: 280px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    }
-    #login-screen h2 {
-      margin-bottom: 20px;
-      font-size: 1.4rem;
-    }
-    #login-screen input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 4px;
-      border: none;
-      box-sizing: border-box;
-      font-size: 1rem;
-    }
-    #login-screen button {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 4px;
-      background: #34b7f1;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.3s ease;
-    }
-    #login-screen button:hover {
-      background: #1da1f2;
+    @keyframes bgShift{
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
     }
 
-    /* —— Chat Container (hidden initially) —— */
-    #chat-container {
-      display: none;
-      padding: 20px;
-      max-width: 600px;
-      margin: 50px auto;
-      background: rgba(255,255,255,0.05);
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    /* LOGIN */
+    #login-screen{
+      position:absolute;
+      top:50%;
+      left:50%;
+      transform:translate(-50%,-50%);
+      background:rgba(0,0,0,0.6);
+      padding:30px;
+      border-radius:10px;
+      width:300px;
+      text-align:center;
+      box-shadow:0 0 20px rgba(0,0,0,0.5);
     }
-    #chat-container h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    #messages {
-      max-height: 350px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      padding: 10px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 8px;
-      margin-bottom: 15px;
-    }
-    .msg {
-      position: relative;
-      max-width: 80%;
-      padding: 8px 12px;
-      margin: 8px 0;
-      font-size: 14px;
-      line-height: 1.4;
-      clear: both;
-    }
-    .theirs {
-      background: #fff; color: #000;
-      border: 1px solid #e2e2e2;
-      border-radius: 18px 18px 18px 0;
-      align-self: flex-start;
-    }
-    .theirs::before {
-      content: "";
-      position: absolute;
-      left: -6px; bottom: 0;
-      border: 6px solid transparent;
-      border-top-color: #fff;
-      border-bottom: 0;
-      margin-bottom: -6px;
-    }
-    .mine {
-      background: #dcf8c6; color: #000;
-      border-radius: 18px 18px 0 18px;
-      align-self: flex-end;
-    }
-    .mine::after {
-      content: "";
-      position: absolute;
-      right: -6px; bottom: 0;
-      border: 6px solid transparent;
-      border-top-color: #dcf8c6;
-      border-bottom: 0;
-      margin-bottom: -6px;
-    }
-    .sender { font-weight: bold; margin-bottom: 4px; color: #555; }
-    .time { font-size: 0.75rem; color: #777; text-align: right; margin-top: 4px; }
 
-    #message {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      border: none;
-      box-sizing: border-box;
+    #login-screen input{
+      width:100%;
+      padding:12px;
+      margin-bottom:15px;
+      border:none;
+      border-radius:6px;
+      box-sizing:border-box;
     }
-    button.send, button.delete-all {
-      width: 100%;
-      padding: 12px;
-      margin-top: 5px;
-      border: none;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.3s ease;
+
+    #login-screen button{
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:6px;
+      background:#34b7f1;
+      color:white;
+      font-weight:bold;
+      cursor:pointer;
     }
-    button.send {
-      background: #34b7f1;
-      color: #fff;
+
+    #login-screen button:hover{
+      background:#1da1f2;
     }
-    button.send:hover {
-      background: #1da1f2;
+
+    /* CHAT */
+    #chat-container{
+      display:none;
+      max-width:700px;
+      margin:30px auto;
+      padding:20px;
+      background:rgba(255,255,255,0.06);
+      border-radius:12px;
+      box-shadow:0 0 25px rgba(0,0,0,0.5);
     }
-    button.delete-all {
-      background: #e74c3c;
-      color: #fff;
+
+    #chat-container h2{
+      text-align:center;
+      margin-bottom:15px;
     }
-    button.delete-all:hover {
-      background: #c0392b;
+
+    /* ONLINE USERS */
+    #online-users{
+      background:rgba(255,255,255,0.08);
+      padding:10px;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+
+    #online-users h3{
+      margin:0 0 10px;
+      font-size:16px;
+    }
+
+    .user-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:5px 0;
+      font-size:14px;
+    }
+
+    .green-dot{
+      width:10px;
+      height:10px;
+      background:#2ecc71;
+      border-radius:50%;
+      box-shadow:0 0 8px #2ecc71;
+    }
+
+    /* MESSAGES */
+    #messages{
+      height:350px;
+      overflow-y:auto;
+      display:flex;
+      flex-direction:column;
+      padding:10px;
+      background:rgba(255,255,255,0.1);
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+
+    .msg{
+      position:relative;
+      max-width:80%;
+      padding:10px 14px;
+      margin:8px 0;
+      font-size:14px;
+      line-height:1.4;
+      word-wrap:break-word;
+    }
+
+    .mine{
+      background:#dcf8c6;
+      color:black;
+      border-radius:18px 18px 0 18px;
+      align-self:flex-end;
+    }
+
+    .theirs{
+      background:white;
+      color:black;
+      border-radius:18px 18px 18px 0;
+      align-self:flex-start;
+    }
+
+    .sender{
+      font-weight:bold;
+      margin-bottom:4px;
+      color:#555;
+    }
+
+    .time{
+      font-size:11px;
+      color:#777;
+      text-align:right;
+      margin-top:4px;
+    }
+
+    a{
+      color:#2196f3;
+      font-weight:bold;
+      text-decoration:underline;
+    }
+
+    /* INPUT */
+    #message{
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:6px;
+      box-sizing:border-box;
+      margin-bottom:10px;
+    }
+
+    button.send,
+    button.delete-all{
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:6px;
+      margin-top:5px;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    button.send{
+      background:#34b7f1;
+      color:white;
+    }
+
+    button.send:hover{
+      background:#1da1f2;
+    }
+
+    button.delete-all{
+      background:#e74c3c;
+      color:white;
+    }
+
+    button.delete-all:hover{
+      background:#c0392b;
     }
   </style>
 </head>
 <body>
 
-  <!-- Login Screen -->
+  <!-- LOGIN -->
   <div id="login-screen">
-    <h2>Enter Chat Password</h2>
-    <input type="password" id="chat-password" placeholder="Password…" />
-    <button id="login-btn">Unlock Chat 🔓</button>
-    <div id="login-error" style="color:#e74c3c; margin-top:10px; display:none;">
-      Wrong password, try again.
+
+    <h2>Enter Chat Password 🔐</h2>
+
+    <input
+      type="password"
+      id="chat-password"
+      placeholder="Password..."
+    />
+
+    <button id="login-btn">
+      Unlock Chat 🔓
+    </button>
+
+    <div
+      id="login-error"
+      style="color:#ff4d4d;margin-top:10px;display:none;"
+    >
+      Wrong password!
     </div>
+
   </div>
 
-  <!-- Chat Container (hidden until login) -->
+  <!-- CHAT -->
   <div id="chat-container">
+
     <h2>Secure WhatsApp-Style Chat 🔐</h2>
+
+    <!-- ONLINE USERS -->
+    <div id="online-users">
+
+      <h3>🟢 Online Users</h3>
+
+      <div id="users-list"></div>
+
+    </div>
+
+    <!-- MESSAGES -->
     <div id="messages"></div>
-    <input type="text" id="message" placeholder="Type your message…" />
-    <button class="send" onclick="sendMessage()">Send</button>
-    <button class="delete-all" onclick="deleteAll()">Delete All Messages</button>
+
+    <!-- INPUT -->
+    <input
+      type="text"
+      id="message"
+      placeholder="Type your message..."
+    />
+
+    <button
+      class="send"
+      onclick="sendMessage()"
+    >
+      Send
+    </button>
+
+    <button
+      class="delete-all"
+      onclick="deleteAll()"
+    >
+      Delete All Messages
+    </button>
+
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- FIREBASE -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // Configuration
-    const CHAT_PASSWORD = "5715";       // password for entry
-    const DELETE_CODE   = "5757";       // code for deleting all messages
 
-    // Elements
-    const loginScreen  = document.getElementById("login-screen");
-    const chatContainer= document.getElementById("chat-container");
-    const loginBtn     = document.getElementById("login-btn");
-    const pwdInput     = document.getElementById("chat-password");
-    const loginError   = document.getElementById("login-error");
+    // ===== CONFIG =====
 
-    // 1) Handle Login
+    const CHAT_PASSWORD = "5715";
+
+    const DELETE_CODE = "5757";
+
+    // ===== ELEMENTS =====
+
+    const loginScreen =
+      document.getElementById("login-screen");
+
+    const chatContainer =
+      document.getElementById("chat-container");
+
+    const loginBtn =
+      document.getElementById("login-btn");
+
+    const pwdInput =
+      document.getElementById("chat-password");
+
+    const loginError =
+      document.getElementById("login-error");
+
+    // ===== LOGIN =====
+
     loginBtn.addEventListener("click", () => {
-      if (pwdInput.value === CHAT_PASSWORD) {
-        loginScreen.style.display  = "none";
-        chatContainer.style.display= "block";
+
+      if (
+        pwdInput.value === CHAT_PASSWORD
+      ) {
+
+        loginScreen.style.display =
+          "none";
+
+        chatContainer.style.display =
+          "block";
+
         initChat();
+
       } else {
-        loginError.style.display = "block";
+
+        loginError.style.display =
+          "block";
+
       }
+
     });
 
-    function initChat() {
-      // Prompt for Name
-      const userName = prompt("Enter your name:") || "Anonymous";
-      const userId   = Date.now() + '_' + Math.random().toString(36).slice(2);
+    // ===== CHAT =====
 
-      // Firebase Init
-      const cfg = {
-        apiKey: "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
-        authDomain: "apk-center.firebaseapp.com",
-        databaseURL: "https://apk-center-default-rtdb.firebaseio.com",
-        projectId: "apk-center",
-        storageBucket: "apk-center.appspot.com",
-        messagingSenderId: "432966065101",
-        appId: "1:432966065101:web:cb757bae82ece9747c4284"
+    function initChat(){
+
+      // USER
+
+      const userName =
+        prompt("Enter your name:") ||
+        "Anonymous";
+
+      const userId =
+        Date.now() + "_" +
+        Math.random().toString(36).slice(2);
+
+      // FIREBASE CONFIG
+
+      const firebaseConfig = {
+
+        apiKey:
+          "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
+
+        authDomain:
+          "apk-center.firebaseapp.com",
+
+        databaseURL:
+          "https://apk-center-default-rtdb.firebaseio.com",
+
+        projectId:
+          "apk-center",
+
+        storageBucket:
+          "apk-center.appspot.com",
+
+        messagingSenderId:
+          "432966065101",
+
+        appId:
+          "1:432966065101:web:cb757bae82ece9747c4284"
+
       };
-      firebase.initializeApp(cfg);
-      const db = firebase.database();
-      const msgInput    = document.getElementById("message");
-      const messagesEl  = document.getElementById("messages");
 
-      // Send a new message
-      window.sendMessage = () => {
-        const text = msgInput.value.trim();
-        if (!text) return;
-        db.ref("messages").push({
-          sender:    userName,
-          userId:    userId,
-          message:   text,
-          timestamp: Date.now()
-        });
-        msgInput.value = "";
-      };
+      // PREVENT DOUBLE INIT
 
-      // Delete all messages
-      window.deleteAll = () => {
-        const code = prompt("Enter delete code:");
-        if (code === DELETE_CODE) {
-          db.ref("messages").remove().then(() => {
-            messagesEl.innerHTML = "";
+      if (!firebase.apps.length) {
+
+        firebase.initializeApp(firebaseConfig);
+
+      }
+
+      const db =
+        firebase.database();
+
+      // ELEMENTS
+
+      const msgInput =
+        document.getElementById("message");
+
+      const messagesEl =
+        document.getElementById("messages");
+
+      const usersList =
+        document.getElementById("users-list");
+
+      // ===== ONLINE USERS =====
+
+      const connectedRef =
+        db.ref(".info/connected");
+
+      connectedRef.on("value", snap => {
+
+        if (snap.val() === true) {
+
+          const onlineRef =
+            db.ref("onlineUsers/" + userId);
+
+          // SET ONLINE
+
+          onlineRef.set({
+
+            name: userName,
+
+            online: true,
+
+            lastSeen: Date.now()
+
           });
-        } else {
-          alert("❌ Wrong code");
+
+          // REMOVE ON DISCONNECT
+
+          onlineRef.onDisconnect().remove();
+
         }
+
+      });
+
+      // SHOW ONLINE USERS
+
+      db.ref("onlineUsers")
+        .on("value", snap => {
+
+          usersList.innerHTML = "";
+
+          snap.forEach(child => {
+
+            const user =
+              child.val();
+
+            const div =
+              document.createElement("div");
+
+            div.className =
+              "user-item";
+
+            div.innerHTML = `
+              <div class="green-dot"></div>
+              <span>${user.name} - Online</span>
+            `;
+
+            usersList.appendChild(div);
+
+          });
+
+        });
+
+      // ===== SEND MESSAGE =====
+
+      window.sendMessage = () => {
+
+        const text =
+          msgInput.value.trim();
+
+        if (!text) return;
+
+        db.ref("messages").push({
+
+          sender: userName,
+
+          userId: userId,
+
+          message: text,
+
+          timestamp: Date.now()
+
+        });
+
+        msgInput.value = "";
+
       };
 
-      // Render incoming messages
-      db.ref("messages").on("child_added", snap => {
-        const { sender, userId: uid, message, timestamp } = snap.val();
-        if (!sender || !message) return;
-        const isMine = uid === userId;
+      // ENTER KEY SEND
 
-        const bubble = document.createElement("div");
-        bubble.className = "msg " + (isMine ? "mine" : "theirs");
+      msgInput.addEventListener("keypress", e => {
 
-        const nameEl = document.createElement("div");
-        nameEl.className = "sender";
-        nameEl.textContent = sender;
+        if (e.key === "Enter") {
 
-        const textEl = document.createElement("div");
-        textEl.textContent = message;
+          sendMessage();
 
-        const timeEl = document.createElement("div");
-        timeEl.className = "time";
-        timeEl.textContent = new Date(timestamp).toLocaleTimeString();
+        }
 
-        bubble.append(nameEl, textEl, timeEl);
-        messagesEl.appendChild(bubble);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
       });
 
-      // Remove deleted messages from UI
-      db.ref("messages").on("child_removed", snap => {
-        const val = snap.val();
-        Array.from(messagesEl.children).forEach(node => {
+      // ===== DELETE ALL =====
+
+      window.deleteAll = () => {
+
+        const code =
+          prompt("Enter delete code:");
+
+        if (code === DELETE_CODE) {
+
+          db.ref("messages")
+            .remove()
+            .then(() => {
+
+              messagesEl.innerHTML = "";
+
+            });
+
+        } else {
+
+          alert("❌ Wrong code");
+
+        }
+
+      };
+
+      // ===== RECEIVE MESSAGES =====
+
+      db.ref("messages")
+        .on("child_added", snap => {
+
+          const {
+
+            sender,
+
+            userId: uid,
+
+            message,
+
+            timestamp
+
+          } = snap.val();
+
           if (
-            node.querySelector(".sender")?.textContent === val.sender &&
-            node.querySelector("div:nth-child(2)")?.textContent === val.message
+            !sender ||
+            !message
+          ) return;
+
+          const isMine =
+            uid === userId;
+
+          // BUBBLE
+
+          const bubble =
+            document.createElement("div");
+
+          bubble.className =
+            "msg " +
+            (isMine ? "mine" : "theirs");
+
+          // NAME
+
+          const nameEl =
+            document.createElement("div");
+
+          nameEl.className =
+            "sender";
+
+          nameEl.textContent =
+            sender;
+
+          // MESSAGE
+
+          const textEl =
+            document.createElement("div");
+
+          // ===== LINK SYSTEM =====
+
+          if (
+            message.startsWith("@link ")
           ) {
-            messagesEl.removeChild(node);
+
+            let link =
+              message
+                .replace("@link ", "")
+                .trim();
+
+            // AUTO HTTPS
+
+            if (
+              !link.startsWith("http://") &&
+              !link.startsWith("https://")
+            ) {
+
+              link =
+                "https://" + link;
+
+            }
+
+            const a =
+              document.createElement("a");
+
+            a.href = link;
+
+            a.target = "_blank";
+
+            a.rel =
+              "noopener noreferrer";
+
+            a.textContent = link;
+
+            textEl.appendChild(a);
+
+          } else {
+
+            textEl.textContent =
+              message;
+
           }
+
+          // TIME
+
+          const timeEl =
+            document.createElement("div");
+
+          timeEl.className =
+            "time";
+
+          timeEl.textContent =
+            new Date(timestamp)
+              .toLocaleTimeString();
+
+          // APPEND
+
+          bubble.append(
+            nameEl,
+            textEl,
+            timeEl
+          );
+
+          messagesEl.appendChild(
+            bubble
+          );
+
+          messagesEl.scrollTop =
+            messagesEl.scrollHeight;
+
         });
-      });
+
+      // ===== REMOVE DELETED =====
+
+      db.ref("messages")
+        .on("child_removed", snap => {
+
+          messagesEl.innerHTML = "";
+
+        });
+
     }
+
   </script>
+
 </body>
-  </html>
+</html>
