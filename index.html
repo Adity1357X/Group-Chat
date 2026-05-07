@@ -1,648 +1,536 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Secure Chat 🔐</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body{
-      margin:0;
-      padding:0;
-      font-family:'Segoe UI',sans-serif;
-      background:linear-gradient(-45deg,#0f0f0f,#1a1a2e,#16213e,#0f3460);
-      background-size:400% 400%;
-      animation:bgShift 15s ease infinite alternate;
-      color:white;
-      overflow:hidden;
-    }
+<title>Realtime Chat 🔥</title>
 
-    @keyframes bgShift{
-      0%{background-position:0% 50%;}
-      50%{background-position:100% 50%;}
-      100%{background-position:0% 50%;}
-    }
+<style>
 
-    /* LOGIN */
-    #login-screen{
-      position:absolute;
-      top:50%;
-      left:50%;
-      transform:translate(-50%,-50%);
-      background:rgba(0,0,0,0.6);
-      padding:30px;
-      border-radius:10px;
-      width:300px;
-      text-align:center;
-      box-shadow:0 0 20px rgba(0,0,0,0.5);
-    }
+body{
+  margin:0;
+  font-family:Segoe UI,sans-serif;
+  background:#111827;
+  color:white;
+}
 
-    #login-screen input{
-      width:100%;
-      padding:12px;
-      margin-bottom:15px;
-      border:none;
-      border-radius:6px;
-      box-sizing:border-box;
-    }
+/* LOGIN */
 
-    #login-screen button{
-      width:100%;
-      padding:12px;
-      border:none;
-      border-radius:6px;
-      background:#34b7f1;
-      color:white;
-      font-weight:bold;
-      cursor:pointer;
-    }
+#login-screen{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#1f2937;
+  padding:25px;
+  border-radius:12px;
+  width:320px;
+  box-shadow:0 0 20px rgba(0,0,0,0.4);
+}
 
-    #login-screen button:hover{
-      background:#1da1f2;
-    }
+#login-screen h2{
+  text-align:center;
+}
 
-    /* CHAT */
-    #chat-container{
-      display:none;
-      max-width:700px;
-      margin:30px auto;
-      padding:20px;
-      background:rgba(255,255,255,0.06);
-      border-radius:12px;
-      box-shadow:0 0 25px rgba(0,0,0,0.5);
-    }
+input{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  box-sizing:border-box;
+  outline:none;
+}
 
-    #chat-container h2{
-      text-align:center;
-      margin-bottom:15px;
-    }
+/* BUTTON */
 
-    /* ONLINE USERS */
-    #online-users{
-      background:rgba(255,255,255,0.08);
-      padding:10px;
-      border-radius:8px;
-      margin-bottom:15px;
-    }
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  transition:0.2s;
+}
 
-    #online-users h3{
-      margin:0 0 10px;
-      font-size:16px;
-    }
+button:hover{
+  opacity:0.9;
+}
 
-    .user-item{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:5px 0;
-      font-size:14px;
-    }
+/* CHAT */
 
-    .green-dot{
-      width:10px;
-      height:10px;
-      background:#2ecc71;
-      border-radius:50%;
-      box-shadow:0 0 8px #2ecc71;
-    }
+#chat-container{
+  display:none;
+  max-width:850px;
+  margin:auto;
+  padding:20px;
+}
 
-    /* MESSAGES */
-    #messages{
-      height:350px;
-      overflow-y:auto;
-      display:flex;
-      flex-direction:column;
-      padding:10px;
-      background:rgba(255,255,255,0.1);
-      border-radius:8px;
-      margin-bottom:15px;
-    }
+#chat-container h2{
+  text-align:center;
+}
 
-    .msg{
-      position:relative;
-      max-width:80%;
-      padding:10px 14px;
-      margin:8px 0;
-      font-size:14px;
-      line-height:1.4;
-      word-wrap:break-word;
-    }
+/* ONLINE USERS */
 
-    .mine{
-      background:#dcf8c6;
-      color:black;
-      border-radius:18px 18px 0 18px;
-      align-self:flex-end;
-    }
+#online-users{
+  background:#1f2937;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:15px;
+}
 
-    .theirs{
-      background:white;
-      color:black;
-      border-radius:18px 18px 18px 0;
-      align-self:flex-start;
-    }
+.user{
+  margin:5px 0;
+}
 
-    .sender{
-      font-weight:bold;
-      margin-bottom:4px;
-      color:#555;
-    }
+.green{
+  color:#22c55e;
+}
 
-    .time{
-      font-size:11px;
-      color:#777;
-      text-align:right;
-      margin-top:4px;
-    }
+/* MESSAGES */
 
-    a{
-      color:#2196f3;
-      font-weight:bold;
-      text-decoration:underline;
-    }
+#messages{
+  height:420px;
+  overflow-y:auto;
+  background:#1f2937;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:15px;
+  display:flex;
+  flex-direction:column;
+}
 
-    /* INPUT */
-    #message{
-      width:100%;
-      padding:12px;
-      border:none;
-      border-radius:6px;
-      box-sizing:border-box;
-      margin-bottom:10px;
-    }
+.msg{
+  max-width:75%;
+  padding:10px;
+  margin:8px 0;
+  border-radius:12px;
+  word-wrap:break-word;
+}
 
-    button.send,
-    button.delete-all{
-      width:100%;
-      padding:12px;
-      border:none;
-      border-radius:6px;
-      margin-top:5px;
-      font-weight:bold;
-      cursor:pointer;
-    }
+.mine{
+  background:#2563eb;
+  align-self:flex-end;
+}
 
-    button.send{
-      background:#34b7f1;
-      color:white;
-    }
+.theirs{
+  background:#374151;
+  align-self:flex-start;
+}
 
-    button.send:hover{
-      background:#1da1f2;
-    }
+.sender{
+  font-weight:bold;
+  margin-bottom:5px;
+}
 
-    button.delete-all{
-      background:#e74c3c;
-      color:white;
-    }
+.time{
+  font-size:11px;
+  opacity:0.7;
+  margin-top:5px;
+  text-align:right;
+}
 
-    button.delete-all:hover{
-      background:#c0392b;
-    }
-  </style>
+/* LINK */
+
+a{
+  color:#60a5fa;
+  font-weight:bold;
+  text-decoration:none;
+}
+
+a:hover{
+  text-decoration:underline;
+}
+
+</style>
 </head>
 <body>
 
-  <!-- LOGIN -->
-  <div id="login-screen">
+<!-- LOGIN -->
 
-    <h2>Enter Chat Password 🔐</h2>
+<div id="login-screen">
 
-    <input
-      type="password"
-      id="chat-password"
-      placeholder="Password..."
-    />
+<h2>Secure Chat 🔐</h2>
 
-    <button id="login-btn">
-      Unlock Chat 🔓
-    </button>
+<input
+type="password"
+id="password"
+placeholder="Enter Password"
+>
 
-    <div
-      id="login-error"
-      style="color:#ff4d4d;margin-top:10px;display:none;"
-    >
-      Wrong password!
-    </div>
+<button id="joinBtn">
+Join Chat
+</button>
 
-  </div>
+</div>
 
-  <!-- CHAT -->
-  <div id="chat-container">
+<!-- CHAT -->
 
-    <h2>Secure WhatsApp-Style Chat 🔐</h2>
+<div id="chat-container">
 
-    <!-- ONLINE USERS -->
-    <div id="online-users">
+<h2>Realtime Secure Chat 🔥</h2>
 
-      <h3>🟢 Online Users</h3>
+<!-- ONLINE USERS -->
 
-      <div id="users-list"></div>
+<div id="online-users">
 
-    </div>
+<h3>🟢 Online Users</h3>
 
-    <!-- MESSAGES -->
-    <div id="messages"></div>
+<div id="users"></div>
 
-    <!-- INPUT -->
-    <input
-      type="text"
-      id="message"
-      placeholder="Type your message..."
-    />
+</div>
 
-    <button
-      class="send"
-      onclick="sendMessage()"
-    >
-      Send
-    </button>
+<!-- MESSAGES -->
 
-    <button
-      class="delete-all"
-      onclick="deleteAll()"
-    >
-      Delete All Messages
-    </button>
+<div id="messages"></div>
 
-  </div>
+<!-- INPUT -->
 
-  <!-- FIREBASE -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<input
+type="text"
+id="messageInput"
+placeholder="Type message..."
+>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<button onclick="sendMessage()">
+Send
+</button>
 
-  <script>
+</div>
 
-    // ===== CONFIG =====
+<!-- FIREBASE -->
 
-    const CHAT_PASSWORD = "5715";
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 
-    const DELETE_CODE = "5757";
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    // ===== ELEMENTS =====
+<script>
 
-    const loginScreen =
-      document.getElementById("login-screen");
+// ==========================
+// PASSWORD
+// ==========================
 
-    const chatContainer =
-      document.getElementById("chat-container");
+const CHAT_PASSWORD = "5715";
 
-    const loginBtn =
-      document.getElementById("login-btn");
+// ==========================
+// FIREBASE CONFIG
+// ==========================
 
-    const pwdInput =
-      document.getElementById("chat-password");
+const firebaseConfig = {
 
-    const loginError =
-      document.getElementById("login-error");
+  apiKey:
+  "AIzaSyBKN-IcrIkQO-nh6h0Zkf5y59zYEZxxSxE",
 
-    // ===== LOGIN =====
+  authDomain:
+  "studio-395202565-d68aa.firebaseapp.com",
 
-    loginBtn.addEventListener("click", () => {
+  databaseURL:
+  "https://studio-395202565-d68aa-default-rtdb.firebaseio.com",
 
-      if (
-        pwdInput.value === CHAT_PASSWORD
-      ) {
+  projectId:
+  "studio-395202565-d68aa",
 
-        loginScreen.style.display =
-          "none";
+  storageBucket:
+  "studio-395202565-d68aa.firebasestorage.app",
 
-        chatContainer.style.display =
-          "block";
+  messagingSenderId:
+  "103850825846",
 
-        initChat();
+  appId:
+  "1:103850825846:web:d7070219bb3f59d0862757"
 
-      } else {
+};
 
-        loginError.style.display =
-          "block";
+// ==========================
+// FIREBASE INIT
+// ==========================
 
-      }
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+
+// ==========================
+// ELEMENTS
+// ==========================
+
+const joinBtn =
+document.getElementById("joinBtn");
+
+const loginScreen =
+document.getElementById("login-screen");
+
+const chatContainer =
+document.getElementById("chat-container");
+
+const usersDiv =
+document.getElementById("users");
+
+const messagesDiv =
+document.getElementById("messages");
+
+const messageInput =
+document.getElementById("messageInput");
+
+// ==========================
+// USER DATA
+// ==========================
+
+let username = "";
+
+let uid = "";
+
+// ==========================
+// LOGIN
+// ==========================
+
+joinBtn.onclick = () => {
+
+  const pass =
+  document.getElementById("password")
+  .value;
+
+  if(pass !== CHAT_PASSWORD){
+
+    alert("Wrong Password");
+
+    return;
+  }
+
+  username =
+  prompt("Enter your name");
+
+  if(!username){
+
+    username = "Anonymous";
+  }
+
+  uid =
+  Date.now() + "_" +
+  Math.random()
+  .toString(36)
+  .slice(2);
+
+  loginScreen.style.display =
+  "none";
+
+  chatContainer.style.display =
+  "block";
+
+  startChat();
+};
+
+// ==========================
+// START CHAT
+// ==========================
+
+function startChat(){
+
+  // ======================
+  // ONLINE USERS
+  // ======================
+
+  const userRef =
+  db.ref("onlineUsers/" + uid);
+
+  userRef.set({
+
+    name: username,
+
+    online: true
+
+  });
+
+  // REMOVE WHEN LEAVE
+
+  userRef.onDisconnect().remove();
+
+  // SHOW USERS
+
+  db.ref("onlineUsers")
+  .on("value", snapshot => {
+
+    usersDiv.innerHTML = "";
+
+    snapshot.forEach(child => {
+
+      const user =
+      child.val();
+
+      const div =
+      document.createElement("div");
+
+      div.className = "user";
+
+      div.innerHTML =
+      `<span class="green">●</span> ${user.name}`;
+
+      usersDiv.appendChild(div);
 
     });
 
-    // ===== CHAT =====
+  });
 
-    function initChat(){
+  // ======================
+  // REALTIME MESSAGES
+  // ======================
 
-      // USER
+  db.ref("messages")
+  .limitToLast(100)
+  .on("child_added", snapshot => {
 
-      const userName =
-        prompt("Enter your name:") ||
-        "Anonymous";
+    const data =
+    snapshot.val();
 
-      const userId =
-        Date.now() + "_" +
-        Math.random().toString(36).slice(2);
+    addMessage(data);
 
-      // FIREBASE CONFIG
+  });
 
-      const firebaseConfig = {
+}
 
-        apiKey:
-          "AIzaSyAjHRSq6lLm7WzLIDOEWi0MMqdAMgwp9Bk",
+// ==========================
+// ADD MESSAGE
+// ==========================
 
-        authDomain:
-          "apk-center.firebaseapp.com",
+function addMessage(data){
 
-        databaseURL:
-          "https://apk-center-default-rtdb.firebaseio.com",
+  const msg =
+  document.createElement("div");
 
-        projectId:
-          "apk-center",
+  const mine =
+  data.uid === uid;
 
-        storageBucket:
-          "apk-center.appspot.com",
+  msg.className =
+  "msg " +
+  (mine ? "mine" : "theirs");
 
-        messagingSenderId:
-          "432966065101",
+  msg.innerHTML = `
 
-        appId:
-          "1:432966065101:web:cb757bae82ece9747c4284"
+    <div class="sender">
+      ${escapeHTML(data.sender)}
+    </div>
 
-      };
+    <div>
+      ${formatMessage(data.text)}
+    </div>
 
-      // PREVENT DOUBLE INIT
+    <div class="time">
+      ${new Date(data.time)
+      .toLocaleTimeString()}
+    </div>
 
-      if (!firebase.apps.length) {
+  `;
 
-        firebase.initializeApp(firebaseConfig);
+  messagesDiv.appendChild(msg);
 
-      }
+  // AUTO SCROLL
 
-      const db =
-        firebase.database();
+  messagesDiv.scrollTop =
+  messagesDiv.scrollHeight;
+}
 
-      // ELEMENTS
+// ==========================
+// SEND MESSAGE
+// ==========================
 
-      const msgInput =
-        document.getElementById("message");
+function sendMessage(){
 
-      const messagesEl =
-        document.getElementById("messages");
+  const text =
+  messageInput.value.trim();
 
-      const usersList =
-        document.getElementById("users-list");
+  if(!text) return;
 
-      // ===== ONLINE USERS =====
+  db.ref("messages").push({
 
-      const connectedRef =
-        db.ref(".info/connected");
+    sender: username,
 
-      connectedRef.on("value", snap => {
+    uid: uid,
 
-        if (snap.val() === true) {
+    text: text,
 
-          const onlineRef =
-            db.ref("onlineUsers/" + userId);
+    time: Date.now()
 
-          // SET ONLINE
+  });
 
-          onlineRef.set({
+  messageInput.value = "";
+}
 
-            name: userName,
+// ==========================
+// ENTER SEND
+// ==========================
 
-            online: true,
+messageInput.addEventListener(
+"keydown",
+e => {
 
-            lastSeen: Date.now()
+  if(e.key === "Enter"){
 
-          });
+    sendMessage();
+  }
 
-          // REMOVE ON DISCONNECT
+});
 
-          onlineRef.onDisconnect().remove();
+// ==========================
+// ESCAPE HTML
+// ==========================
 
-        }
+function escapeHTML(str){
 
-      });
+  return str
+  .replace(/&/g,"&amp;")
+  .replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;");
+}
 
-      // SHOW ONLINE USERS
+// ==========================
+// FORMAT MESSAGE
+// ==========================
 
-      db.ref("onlineUsers")
-        .on("value", snap => {
+function formatMessage(text){
 
-          usersList.innerHTML = "";
+  text = escapeHTML(text);
 
-          snap.forEach(child => {
+  // LINK SYSTEM
 
-            const user =
-              child.val();
+  if(text.startsWith("@link ")){
 
-            const div =
-              document.createElement("div");
+    let link =
+    text.replace("@link ","")
+    .trim();
 
-            div.className =
-              "user-item";
+    // AUTO HTTPS
 
-            div.innerHTML = `
-              <div class="green-dot"></div>
-              <span>${user.name} - Online</span>
-            `;
+    if(
+      !link.startsWith("http://") &&
+      !link.startsWith("https://")
+    ){
 
-            usersList.appendChild(div);
-
-          });
-
-        });
-
-      // ===== SEND MESSAGE =====
-
-      window.sendMessage = () => {
-
-        const text =
-          msgInput.value.trim();
-
-        if (!text) return;
-
-        db.ref("messages").push({
-
-          sender: userName,
-
-          userId: userId,
-
-          message: text,
-
-          timestamp: Date.now()
-
-        });
-
-        msgInput.value = "";
-
-      };
-
-      // ENTER KEY SEND
-
-      msgInput.addEventListener("keypress", e => {
-
-        if (e.key === "Enter") {
-
-          sendMessage();
-
-        }
-
-      });
-
-      // ===== DELETE ALL =====
-
-      window.deleteAll = () => {
-
-        const code =
-          prompt("Enter delete code:");
-
-        if (code === DELETE_CODE) {
-
-          db.ref("messages")
-            .remove()
-            .then(() => {
-
-              messagesEl.innerHTML = "";
-
-            });
-
-        } else {
-
-          alert("❌ Wrong code");
-
-        }
-
-      };
-
-      // ===== RECEIVE MESSAGES =====
-
-      db.ref("messages")
-        .on("child_added", snap => {
-
-          const {
-
-            sender,
-
-            userId: uid,
-
-            message,
-
-            timestamp
-
-          } = snap.val();
-
-          if (
-            !sender ||
-            !message
-          ) return;
-
-          const isMine =
-            uid === userId;
-
-          // BUBBLE
-
-          const bubble =
-            document.createElement("div");
-
-          bubble.className =
-            "msg " +
-            (isMine ? "mine" : "theirs");
-
-          // NAME
-
-          const nameEl =
-            document.createElement("div");
-
-          nameEl.className =
-            "sender";
-
-          nameEl.textContent =
-            sender;
-
-          // MESSAGE
-
-          const textEl =
-            document.createElement("div");
-
-          // ===== LINK SYSTEM =====
-
-          if (
-            message.startsWith("@link ")
-          ) {
-
-            let link =
-              message
-                .replace("@link ", "")
-                .trim();
-
-            // AUTO HTTPS
-
-            if (
-              !link.startsWith("http://") &&
-              !link.startsWith("https://")
-            ) {
-
-              link =
-                "https://" + link;
-
-            }
-
-            const a =
-              document.createElement("a");
-
-            a.href = link;
-
-            a.target = "_blank";
-
-            a.rel =
-              "noopener noreferrer";
-
-            a.textContent = link;
-
-            textEl.appendChild(a);
-
-          } else {
-
-            textEl.textContent =
-              message;
-
-          }
-
-          // TIME
-
-          const timeEl =
-            document.createElement("div");
-
-          timeEl.className =
-            "time";
-
-          timeEl.textContent =
-            new Date(timestamp)
-              .toLocaleTimeString();
-
-          // APPEND
-
-          bubble.append(
-            nameEl,
-            textEl,
-            timeEl
-          );
-
-          messagesEl.appendChild(
-            bubble
-          );
-
-          messagesEl.scrollTop =
-            messagesEl.scrollHeight;
-
-        });
-
-      // ===== REMOVE DELETED =====
-
-      db.ref("messages")
-        .on("child_removed", snap => {
-
-          messagesEl.innerHTML = "";
-
-        });
-
+      link =
+      "https://" + link;
     }
 
-  </script>
+    return `
+
+      <a
+        href="${link}"
+        target="_blank"
+      >
+        🔗 ${link}
+      </a>
+
+    `;
+  }
+
+  // NORMAL TEXT
+
+  return text;
+}
+
+</script>
 
 </body>
 </html>
